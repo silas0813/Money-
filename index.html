@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能記帳本</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- 自定義 Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        income: '#10b981',
+                        expense: '#ef4444',
+                        primary: '#5D5CDE',
+                        'primary-dark': '#4d4dba',
+                    },
+                    transitionProperty: {
+                        'height': 'height',
+                        'spacing': 'margin, padding',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 自定義滑動條 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        .dark ::-webkit-scrollbar-track {
+            background: #2d2d2d;
+        }
+        
+        .dark ::-webkit-scrollbar-thumb {
+            background: #666;
+        }
+        
+        /* 滑動切換分類 */
+        .categories-container {
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        
+        .categories-container::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .category-item {
+            scroll-snap-align: start;
+        }
+        
+        /* 數字輸入框樣式 */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+        
+        /* 平滑過渡效果 */
+        .slide-fade-enter-active, .slide-fade-leave-active {
+            transition: all 0.3s ease;
+        }
+        
+        .slide-fade-enter, .slide-fade-leave-to {
+            transform: translateX(10px);
+            opacity: 0;
+        }
+        
+        /* 滑動刪除效果 */
+        .swipe-action {
+            position: absolute;
+            right: 0;
+            height: 100%;
+            transform: translateX(100%);
+            transition: transform 0.3s;
+        }
+        
+        .swipe-container.swiped .swipe-action {
+            transform: translateX(0);
+        }
+        
+        /* 浮動標籤效果 */
+        .floating-label-input:focus-within label,
+        .floating-label-input.has-value label {
+            transform: translateY(-1.5rem) scale(0.85);
+            color: var(--label-focus-color, #5D5CDE);
+        }
+        
+        /* 動畫效果 */
+        @keyframes pulse-scale {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .pulse-animation {
+            animation: pulse-scale 2s infinite;
+        }
+        
+        /* 自適應圖表容器 */
+        .chart-container {
+            position: relative;
+            width: 100%;
+        }
+
+        /* 手機下拉菜單 */
+        .mobile-menu {
+            transform: translateY(-100%);
+            transition: transform 0.3s ease-in-out;
+        }
+        
+        .mobile-menu.show {
+            transform: translateY(0);
+        }
+        
+        /* 頁面轉場效果 */
+        .page {
+            opacity: 0;
+            display: none;
+            transition: all 0.3s ease;
+            transform: translateX(0);
+            height: 0;
+            overflow: hidden;
+        }
+        
+        .page.active {
+            opacity: 1;
+            display: block;
+            height: auto;
+            animation: fadeIn 0.3s ease forwards;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* 導航按鈕過渡效果 */
+        .nav-btn {
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        
+        .nav-btn::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background-color: #5D5CDE;
+            transition: width 0.2s ease;
+        }
+        
+        .nav-btn:hover::after {
+            width: 100%;
+        }
+        
+        .nav-btn.active::after {
+            width: 100%;
+        }
+        
+        .nav-btn.active {
+            color: #5D5CDE;
+        }
+        
+        /* 側邊導航選中狀態 */
+        .sidebar-nav-item {
+            transition: all 0.2s ease;
+        }
+        
+        .sidebar-nav-item.active {
+            background-color: rgba(93, 92, 222, 0.1);
+            color: #5D5CDE;
+            border-left: 3px solid #5D5CDE;
+        }
+        
+        .dark .sidebar-nav-item.active {
+            background-color: rgba(93, 92, 222, 0.2);
+        }
+        
+        /* 移動端底部導航 */
+        .bottom-nav {
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        .dark .bottom-nav {
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-200 min-h-screen">
+    <div class="min-h-screen flex flex-col md:flex-row">
+        <!-- 側邊欄 (桌面端) -->
+        <div class="hidden md:flex md:w-64 bg-white dark:bg-gray-800 flex-shrink-0 flex-col shadow-md">
+            <!-- 標誌 -->
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center space-x-3">
+                    <div class="h-10 w-10 bg-primary rounded-xl flex items-center justify-center text-white">
+                        <i class="fas fa-wallet"></i>
+                    </div>
+                    <h1 class="text-xl font-bold">智能記帳本</h1>
+                </div>
+            </div>
+            
+            <!-- 側邊欄導航 -->
+            <div class="flex-grow py-4">
+                <ul class="space-y-1">
+                    <li>
+                        <button class="sidebar-nav-item active w-full text-left px-6 py-3 flex items-center space-x-3" data-page="dashboard">
+                            <i class="fas fa-chart-pie w-5 text-center"></i>
+                            <span>儀表板</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button class="sidebar-nav-item w-full text-left px-6 py-3 flex items-center space-x-3" data-page="transactions">
+                            <i class="fas fa-exchange-alt w-5 text-center"></i>
+                            <span>交易記錄</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button class="sidebar-nav-item w-full text-left px-6 py-3 flex items-center space-x-3" data-page="budget">
+                            <i class="fas fa-money-bill-wave w-5 text-center"></i>
+                            <span>預算管理</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button class="sidebar-nav-item w-full text-left px-6 py-3 flex items-center space-x-3" data-page="categories">
+                            <i class="fas fa-tags w-5 text-center"></i>
+                            <span>分類管理</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button class="sidebar-nav-item w-full text-left px-6 py-3 flex items-center space-x-3" data-page="reports">
+                            <i class="fas fa-file-alt w-5 text-center"></i>
+                            <span>財務報告</span>
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="mt-8 border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <ul class="space-y-1">
+                        <li>
+                            <button class="sidebar-nav-item w-full text-left px-6 py-3 flex items-center space-x-3" data-page="settings">
+                                <i class="fas fa-cog w-5 text-center"></i>
+                                <span>設定</span>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- 側邊欄底部 -->
+            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                <button id="sidebar-theme-toggle" class="w-full py-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center space-x-2">
+                    <i class="fas fa-moon dark:hidden"></i>
+                    <i class="fas fa-sun hidden dark:inline"></i>
+                    <span class="dark:hidden">切換深色模式</span>
+                    <span class="hidden dark:inline">切換淺色模式</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- 主要內容區域 -->
+        <div class="flex-grow flex flex-col">
+            <!-- 頂部導航 (移動端) -->
+            <header class="bg-white dark:bg-gray-800 shadow-sm p-4 md:hidden sticky top-0 z-30">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-3">
+                        <div class="h-10 w-10 bg-primary rounded-xl flex items-center justify-center text-white">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <h1 class="text-xl font-bold" id="mobile-page-title">儀表板</h1>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <button id="mobile-theme-toggle" class="p-2 rounded-full text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-gray-200">
+                            <i class="fas fa-moon dark:hidden"></i>
+                            <i class="fas fa-sun hidden dark:inline"></i>
+                        </button>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- 頁面內容容器 -->
+            <div class="flex-grow p-4 pb-20 md:pb-4 md:p-6 overflow-y-auto">
+                <!-- 儀表板頁面 -->
+                <div id="dashboard" class="page active">
+                    <h2 class="text-2xl font-bold mb-6 md:hidden">儀表板</h2>
+                    <h2 class="text-2xl font-bold mb-6 hidden md:block">財務儀表板</h2>
+                    
+                    <!-- 儀表板摘要指標 -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">本月收入</h3>
+                            <p id="total-income" class="text-2xl font-bold text-income">$0.00</p>
+                            <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                <span id="income-trend">
+                                    <i class="fas fa-arrow-up text-income mr-1"></i>
+                                    <span>0%</span>
+                                </span>
+                                <span class="ml-1">相比上月</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">本月支出</h3>
+                            <p id="total-expense" class="text-2xl font-bold text-expense">$0.00</p>
+                            <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                <span id="expense-trend">
+                                    <i class="fas fa-arrow-down text-income mr-1"></i>
+                                    <span>0%</span>
+                                </span>
+                                <span class="ml-1">相比上月</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">本月結餘</h3>
+                            <p id="total-balance" class="text-2xl font-bold text-primary">$0.00</p>
+                            <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                <span id="savings-rate">
+                                    <span>存款率: 0%</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 圖表和最近交易 -->
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+                        <!-- 左側：費用分類圖表 -->
+                        <div class="md:col-span-7">
+                            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h2 class="text-xl font-bold">支出分類</h2>
+                                    
+                                    <!-- 圖表類型切換 -->
+                                    <div class="flex">
+                                        <div class="inline-flex rounded-md shadow-sm" role="group">
+                                            <button id="pie-chart-btn" class="px-4 py-2 text-sm font-medium bg-primary text-white rounded-l-lg hover:bg-primary-dark focus:z-10 focus:outline-none transition-colors">
+                                                <i class="fas fa-chart-pie mr-1"></i>
+                                                圓餅圖
+                                            </button>
+                                            <button id="bar-chart-btn" class="px-4 py-2 text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-r-lg hover:bg-gray-300 dark:hover:bg-gray-600 focus:z-10 focus:outline-none transition-colors">
+                                                <i class="fas fa-chart-bar mr-1"></i>
+                                                柱狀圖
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 圖表容器 -->
+                                <div class="chart-container" style="height: 300px;">
+                                    <canvas id="expense-chart"></canvas>
+                                </div>
+                                
+                                <!-- 圖表時間範圍選擇 -->
+                                <div class="mt-4 flex justify-center">
+                                    <div class="inline-flex rounded-md shadow-sm" role="group">
+                                        <button data-range="week" class="chart-range-btn px-3 py-1 text-sm font-medium bg-primary text-white rounded-l-lg hover:bg-primary-dark focus:z-10 focus:outline-none transition-colors">
+                                            本週
+                                        </button>
+                                        <button data-range="month" class="chart-range-btn px-3 py-1 text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 focus:z-10 focus:outline-none transition-colors">
+                                            本月
+                                        </button>
+                                        <button data-range="year" class="chart-range-btn px-3 py-1 text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-r-lg hover:bg-gray-300 dark:hover:bg-gray-600 focus:z-10 focus:outline-none transition-colors">
+                                            本年
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 右側：預算追蹤和最近交易 -->
+                        <div class="md:col-span-5">
+                            <!-- 預算追蹤 -->
+                            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-6">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h2 class="text-xl font-bold">預算追蹤</h2>
+                                    <button class="change-page-btn text-primary hover:text-primary-dark text-sm font-medium transition-colors" data-target="budget">
+                                        調整預算
+                                    </button>
+                                </div>
+                                
+                                <div id="budget-list" class="space-y-4">
+                                    <!-- 預算項目將通過 JavaScript 動態添加 -->
+                                    <div class="text-center text-gray-500 dark:text-gray-400 py-4">
+                                        尚無預算設定
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 最近交易 -->
+                            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h2 class="text-xl font-bold">最近交易</h2>
+                                    <button class="change-page-btn text-primary hover:text-primary-dark text-sm font-medium transition-colors" data-target="transactions">
+                                        查看全部
+                                    </button>
+                                </div>
+                                
+                                <div id="recent-transactions" class="space-y-2">
+                                    <!-- 最近交易項目將通過 JavaScript 動態添加 -->
+                                    <div class="text-center text-gray-500 dark:text-gray-400 py-4">
+                                        尚無交易記錄
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 新增交易按鈕（懸浮） -->
+                    <button id="dashboard-add-transaction-btn" class="fixed bottom-20 md:bottom-6 right-6 h-14 w-14 rounded-full bg-primary hover:bg-primary-dark text-white shadow-lg flex items-center justify-center text-2xl transition-colors">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                
+                <!-- 交易記錄頁面 -->
+                <div id="transactions" class="page">
+                    <h2 class="text-2xl font-bold mb-6 md:hidden">交易記錄</h2>
+                    <h2 class="text-2xl font-bold mb-6 hidden md:block">所有交易記錄</h2>
+                    
+                    <!-- 過濾器 -->
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-4">
+                        <div class="flex flex-col md:flex-row justify-between items-start 
