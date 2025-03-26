@@ -3,450 +3,2818 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智能記帳本</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Chart.js -->
+    <title>智能記帳助手</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- 自定義 Tailwind 配置 -->
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        income: '#10b981',
-                        expense: '#ef4444',
-                        primary: '#5D5CDE',
-                        'primary-dark': '#4d4dba',
-                    },
-                    transitionProperty: {
-                        'height': 'height',
-                        'spacing': 'margin, padding',
-                    }
-                }
+    <style>
+        :root {
+            --income-color: #4CAF50;
+            --expense-color: #F44336;
+            --primary-color: #3f51b5;
+            --secondary-color: #f5f5f5;
+            --text-color: #333;
+            --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            --border-radius: 8px;
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f9f9f9;
+            color: var(--text-color);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 15px;
+        }
+
+        .app-header {
+            text-align: center;
+            padding: 20px 0;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .app-header h1 {
+            color: var(--primary-color);
+            font-size: 2rem;
+            margin-bottom: 5px;
+        }
+
+        .app-header p {
+            color: #666;
+            font-size: 1rem;
+        }
+
+        .stats-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 15px;
+            box-shadow: var(--shadow);
+            text-align: center;
+            transition: var(--transition);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .stat-card h3 {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .amount {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .income .amount {
+            color: var(--income-color);
+        }
+
+        .expense .amount {
+            color: var(--expense-color);
+        }
+
+        .balance .amount {
+            color: var(--primary-color);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr 1fr;
             }
         }
-    </script>
-    <style>
-        /* 自定義滑動條 */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 3px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
-        
-        .dark ::-webkit-scrollbar-track {
-            background: #2d2d2d;
-        }
-        
-        .dark ::-webkit-scrollbar-thumb {
-            background: #666;
-        }
-        
-        /* 滑動切換分類 */
-        .categories-container {
-            scroll-snap-type: x mandatory;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-        }
-        
-        .categories-container::-webkit-scrollbar {
-            display: none;
-        }
-        
-        .category-item {
-            scroll-snap-align: start;
-        }
-        
-        /* 數字輸入框樣式 */
-        input[type="number"]::-webkit-inner-spin-button,
-        input[type="number"]::-webkit-outer-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-        
-        input[type="number"] {
-            -moz-appearance: textfield;
-        }
-        
-        /* 平滑過渡效果 */
-        .slide-fade-enter-active, .slide-fade-leave-active {
-            transition: all 0.3s ease;
-        }
-        
-        .slide-fade-enter, .slide-fade-leave-to {
-            transform: translateX(10px);
-            opacity: 0;
-        }
-        
-        /* 滑動刪除效果 */
-        .swipe-action {
-            position: absolute;
-            right: 0;
-            height: 100%;
-            transform: translateX(100%);
-            transition: transform 0.3s;
-        }
-        
-        .swipe-container.swiped .swipe-action {
-            transform: translateX(0);
-        }
-        
-        /* 浮動標籤效果 */
-        .floating-label-input:focus-within label,
-        .floating-label-input.has-value label {
-            transform: translateY(-1.5rem) scale(0.85);
-            color: var(--label-focus-color, #5D5CDE);
-        }
-        
-        /* 動畫效果 */
-        @keyframes pulse-scale {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-        
-        .pulse-animation {
-            animation: pulse-scale 2s infinite;
-        }
-        
-        /* 自適應圖表容器 */
+
         .chart-container {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            height: 300px;
             position: relative;
+        }
+
+        .tab-container {
+            display: flex;
+            margin-bottom: 15px;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            background-color: #f0f0f0;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            background: none;
+            font-weight: bold;
+        }
+
+        .tab.active {
+            background-color: white;
+            box-shadow: var(--shadow);
+        }
+
+        .tab.income {
+            color: var(--income-color);
+        }
+
+        .tab.expense {
+            color: var(--expense-color);
+        }
+
+        .chart-type-toggle {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            z-index: 10;
+            background: #f0f0f0;
+            border-radius: 20px;
+            padding: 5px;
+            display: flex;
+        }
+
+        .chart-type-toggle button {
+            background: none;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 15px;
+            font-size: 0.8rem;
+        }
+
+        .chart-type-toggle button.active {
+            background: white;
+            box-shadow: var(--shadow);
+        }
+
+        .form-section {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .form-title {
+            margin-bottom: 15px;
+            color: var(--primary-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .form-type-toggle {
+            display: flex;
+            margin-bottom: 20px;
+        }
+
+        .form-type-btn {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            background: #f9f9f9;
+            transition: var(--transition);
+        }
+
+        .form-type-btn:first-child {
+            border-radius: var(--border-radius) 0 0 var(--border-radius);
+        }
+
+        .form-type-btn:last-child {
+            border-radius: 0 var(--border-radius) var(--border-radius) 0;
+        }
+
+        .form-type-btn.active.income {
+            background-color: var(--income-color);
+            color: white;
+            border-color: var(--income-color);
+        }
+
+        .form-type-btn.active.expense {
+            background-color: var(--expense-color);
+            color: white;
+            border-color: var(--expense-color);
+        }
+
+        .transaction-form {
+            display: grid;
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .form-control {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.2);
+        }
+
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: bold;
+            transition: var(--transition);
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        .btn-block {
             width: 100%;
         }
 
-        /* 手機下拉菜單 */
-        .mobile-menu {
-            transform: translateY(-100%);
-            transition: transform 0.3s ease-in-out;
+        .btn-income {
+            background-color: var(--income-color);
         }
-        
-        .mobile-menu.show {
+
+        .btn-expense {
+            background-color: var(--expense-color);
+        }
+
+        .transactions-section {
+            margin-top: 20px;
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .transaction-filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .filter-item {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .transactions-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+        }
+
+        .transaction-item {
+            padding: 15px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: var(--transition);
+        }
+
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+
+        .transaction-item:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .transaction-info {
+            flex: 1;
+        }
+
+        .transaction-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .transaction-date {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .transaction-amount {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .transaction-amount.income {
+            color: var(--income-color);
+        }
+
+        .transaction-amount.expense {
+            color: var(--expense-color);
+        }
+
+        .transaction-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            color: #666;
+            transition: var(--transition);
+            padding: 5px;
+        }
+
+        .action-btn:hover {
+            color: var(--primary-color);
+        }
+
+        .delete-btn:hover {
+            color: var(--expense-color);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .advanced-features {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .feature-card {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 15px;
+            box-shadow: var(--shadow);
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .feature-card i {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #333;
+            color: white;
+            padding: 15px 20px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            transform: translateY(100px);
+            z-index: 1000;
+        }
+
+        .toast.show {
+            opacity: 1;
             transform: translateY(0);
         }
-        
-        /* 頁面轉場效果 */
-        .page {
-            opacity: 0;
-            display: none;
-            transition: all 0.3s ease;
-            transform: translateX(0);
-            height: 0;
+
+        .toast.success {
+            background-color: var(--income-color);
+        }
+
+        .toast.error {
+            background-color: var(--expense-color);
+        }
+
+        .budget-progress {
+            height: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            margin-top: 5px;
             overflow: hidden;
         }
-        
-        .page.active {
-            opacity: 1;
+
+        .progress-bar {
+            height: 100%;
+            background-color: var(--primary-color);
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-bar.warning {
+            background-color: #FFC107;
+        }
+
+        .progress-bar.danger {
+            background-color: var(--expense-color);
+        }
+
+        .upload-receipt {
+            border: 2px dashed #ddd;
+            padding: 20px;
+            text-align: center;
+            border-radius: var(--border-radius);
+            margin-top: 15px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .upload-receipt:hover {
+            border-color: var(--primary-color);
+            background-color: rgba(63, 81, 181, 0.05);
+        }
+
+        .upload-receipt i {
+            font-size: 2rem;
+            color: #999;
+            margin-bottom: 10px;
             display: block;
-            height: auto;
-            animation: fadeIn 0.3s ease forwards;
         }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+
+        .receipt-preview {
+            max-width: 100%;
+            max-height: 200px;
+            margin-top: 15px;
+            border-radius: var(--border-radius);
         }
-        
-        /* 導航按鈕過渡效果 */
-        .nav-btn {
-            transition: all 0.2s ease;
-            position: relative;
+
+        @media (max-width: 767px) {
+            .app-header h1 {
+                font-size: 1.5rem;
+            }
+
+            .stat-card {
+                padding: 10px;
+            }
+
+            .stat-card .amount {
+                font-size: 1.2rem;
+            }
+
+            .chart-container {
+                height: 250px;
+            }
+
+            .transaction-filters {
+                flex-direction: column;
+            }
+
+            .filter-item {
+                width: 100%;
+            }
         }
-        
-        .nav-btn::after {
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 0;
-            width: 0;
-            height: 2px;
-            background-color: #5D5CDE;
-            transition: width 0.2s ease;
+
+        /* 自定義滾動條 */
+        ::-webkit-scrollbar {
+            width: 8px;
         }
-        
-        .nav-btn:hover::after {
-            width: 100%;
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
         }
-        
-        .nav-btn.active::after {
-            width: 100%;
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
         }
-        
-        .nav-btn.active {
-            color: #5D5CDE;
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #666;
         }
-        
-        /* 側邊導航選中狀態 */
-        .sidebar-nav-item {
-            transition: all 0.2s ease;
+
+        /* Material Icons */
+        .material-icons {
+            font-family: 'Material Icons';
+            font-size: 24px;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+            vertical-align: middle;
         }
-        
-        .sidebar-nav-item.active {
-            background-color: rgba(93, 92, 222, 0.1);
-            color: #5D5CDE;
-            border-left: 3px solid #5D5CDE;
+
+        .recurring-label {
+            display: inline-block;
+            background-color: #E1F5FE;
+            color: #0288D1;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            margin-left: 5px;
         }
-        
-        .dark .sidebar-nav-item.active {
-            background-color: rgba(93, 92, 222, 0.2);
+
+        .categories-container {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
         }
-        
-        /* 移動端底部導航 */
-        .bottom-nav {
-            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+
+        .category-tag {
+            background-color: #f0f0f0;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: var(--transition);
         }
-        
-        .dark .bottom-nav {
-            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+
+        .category-tag:hover {
+            background-color: #e0e0e0;
+        }
+
+        .category-tag.selected {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .currency-converter {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: var(--border-radius);
+        }
+
+        .converter-inputs {
+            display: flex;
+            gap: 10px;
+            align-items: center;
         }
     </style>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-200 min-h-screen">
-    <div class="min-h-screen flex flex-col md:flex-row">
-        <!-- 側邊欄 (桌面端) -->
-        <div class="hidden md:flex md:w-64 bg-white dark:bg-gray-800 flex-shrink-0 flex-col shadow-md">
-            <!-- 標誌 -->
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                <div class="flex items-center space-x-3">
-                    <div class="h-10 w-10 bg-primary rounded-xl flex items-center justify-center text-white">
-                        <i class="fas fa-wallet"></i>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1>智能記帳助手</h1>
+            <p>輕鬆管理財務，掌握收支狀況</p>
+        </header>
+
+        <div class="stats-panel">
+            <div class="stat-card income">
+                <h3>今日收入</h3>
+                <div class="amount" id="todayIncome">HK$ 0</div>
+            </div>
+            <div class="stat-card expense">
+                <h3>今日支出</h3>
+                <div class="amount" id="todayExpense">HK$ 0</div>
+            </div>
+            <div class="stat-card balance">
+                <h3>本月結餘</h3>
+                <div class="amount" id="monthlyBalance">HK$ 0</div>
+            </div>
+            <div class="stat-card">
+                <h3>預算使用率</h3>
+                <div id="budgetAmount">HK$ 0 / HK$ 15,000</div>
+                <div class="budget-progress">
+                    <div class="progress-bar" id="budgetProgressBar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="chart-container">
+                <div class="tab-container">
+                    <button class="tab income active" data-tab="income">收入分析</button>
+                    <button class="tab expense" data-tab="expense">支出分析</button>
+                </div>
+                <div class="chart-type-toggle">
+                    <button class="active" data-chart="pie">圓餅圖</button>
+                    <button data-chart="bar">柱狀圖</button>
+                </div>
+                <canvas id="transactionChart"></canvas>
+            </div>
+
+            <div class="form-section">
+                <div class="form-title">
+                    <h2>新增交易記錄</h2>
+                    <div>
+                        <span class="material-icons" id="helpBtn" style="cursor: pointer;">help_outline</span>
                     </div>
-                    <h1 class="text-xl font-bold">智能記帳本</h1>
+                </div>
+                <div class="form-type-toggle">
+                    <div class="form-type-btn income active" data-type="income">收入</div>
+                    <div class="form-type-btn expense" data-type="expense">支出</div>
+                </div>
+                <form id="transactionForm" class="transaction-form">
+                    <div class="form-group">
+                        <label for="amount">金額</label>
+                        <input type="number" id="amount" class="form-control" placeholder="請輸入金額" required min="0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label for="category">分類</label>
+                        <select id="category" class="form-control" required>
+                            <!-- 動態生成分類選項 -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>自定義分類標籤</label>
+                        <div class="categories-container" id="categoryTags">
+                            <!-- 動態生成分類標籤 -->
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="date">日期</label>
+                        <input type="date" id="date" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="description">備註</label>
+                        <textarea id="description" class="form-control" placeholder="新增備註（可選）" rows="2"></textarea>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
+                        <input type="checkbox" id="isRecurring">
+                        <label for="isRecurring">設為週期性交易</label>
+                    </div>
+                    <div id="recurringOptions" style="display: none; margin-bottom: 15px;">
+                        <div class="form-group">
+                            <label for="recurringType">週期類型</label>
+                            <select id="recurringType" class="form-control">
+                                <option value="daily">每日</option>
+                                <option value="weekly">每週</option>
+                                <option value="monthly" selected>每月</option>
+                                <option value="yearly">每年</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="recurringDay">日期</label>
+                            <input type="number" id="recurringDay" class="form-control" placeholder="每月幾號" min="1" max="31" value="1">
+                        </div>
+                    </div>
+                    <div class="upload-receipt" id="receiptUpload">
+                        <i class="material-icons">upload_file</i>
+                        <p>點擊上傳收據照片（可選）</p>
+                        <input type="file" id="receiptFile" accept="image/*" style="display: none;">
+                    </div>
+                    <img id="receiptPreview" class="receipt-preview" style="display: none;">
+                    <button type="submit" class="btn btn-block btn-income" id="submitBtn">新增收入</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="transactions-section">
+            <div class="section-header">
+                <h2>交易記錄</h2>
+                <div>
+                    <button id="exportBtn" class="btn" style="background-color: #2196F3;">
+                        <span class="material-icons" style="font-size: 18px;">file_download</span> 匯出
+                    </button>
+                    <button id="importBtn" class="btn" style="background-color: #FF9800;">
+                        <span class="material-icons" style="font-size: 18px;">file_upload</span> 匯入
+                    </button>
                 </div>
             </div>
-            
-            <!-- 側邊欄導航 -->
-            <div class="flex-grow py-4">
-                <ul class="space-y-1">
-                    <li>
-                        <button class="sidebar-nav-item active w-full text-left px-6 py-3 flex items-center space-x-3" data-page="dashboard">
-                            <i class="fas fa-chart-pie w-5 text-center"></i>
-                            <span>儀表板</span>
-                        </button>
-                    </li>
-                    <li>
-                        <button class="sidebar-nav-item w-full text-left px-6 py-3 flex items-center space-x-3" data-page="transactions">
-                            <i class="fas fa-exchange-alt w-5 text-center"></i>
-                            <span>交易記錄</span>
-                        </button>
-                    </li>
-                    <li>
-                        <button class="sidebar-nav-item w-full text-left px-6 py-3 flex items-center space-x-3" data-page="budget">
-                            <i class="fas fa-money-bill-wave w-5 text-center"></i>
-                            <span>預算管理</span>
-                        </button>
-                    </li>
-                    <li>
-                        <button class="sidebar-nav-item w-full text-left px-6 py-3 flex items-center space-x-3" data-page="categories">
-                            <i class="fas fa-tags w-5 text-center"></i>
-                            <span>分類管理</span>
-                        </button>
-                    </li>
-                    <li>
-                        <button class="sidebar-nav-item w-full text-left px-6 py-3 flex items-center space-x-3" data-page="reports">
-                            <i class="fas fa-file-alt w-5 text-center"></i>
-                            <span>財務報告</span>
-                        </button>
-                    </li>
-                </ul>
-                
-                <div class="mt-8 border-t border-gray-200 dark:border-gray-700 pt-4">
-                    <ul class="space-y-1">
-                        <li>
-                            <button class="sidebar-nav-item w-full text-left px-6 py-3 flex items-center space-x-3" data-page="settings">
-                                <i class="fas fa-cog w-5 text-center"></i>
-                                <span>設定</span>
-                            </button>
-                        </li>
-                    </ul>
+            <div class="transaction-filters">
+                <div class="filter-item">
+                    <select id="typeFilter" class="form-control">
+                        <option value="all">所有類型</option>
+                        <option value="income">僅收入</option>
+                        <option value="expense">僅支出</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <select id="categoryFilter" class="form-control">
+                        <option value="all">所有分類</option>
+                        <!-- 動態生成分類選項 -->
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <input type="date" id="dateFromFilter" class="form-control" placeholder="起始日期">
+                </div>
+                <div class="filter-item">
+                    <input type="date" id="dateToFilter" class="form-control" placeholder="結束日期">
+                </div>
+                <div class="filter-item">
+                    <button id="applyFilter" class="btn" style="width: 100%;">套用篩選</button>
                 </div>
             </div>
-            
-            <!-- 側邊欄底部 -->
-            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
-                <button id="sidebar-theme-toggle" class="w-full py-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center space-x-2">
-                    <i class="fas fa-moon dark:hidden"></i>
-                    <i class="fas fa-sun hidden dark:inline"></i>
-                    <span class="dark:hidden">切換深色模式</span>
-                    <span class="hidden dark:inline">切換淺色模式</span>
+            <div class="transactions-list" id="transactionsList">
+                <!-- 動態生成交易記錄 -->
+                <div class="empty-state">
+                    <i class="material-icons">account_balance_wallet</i>
+                    <p>尚無交易記錄</p>
+                    <p>開始添加您的第一筆收支吧！</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="advanced-features">
+            <div class="feature-card" id="budgetSettingBtn">
+                <i class="material-icons">savings</i>
+                <h3>預算設定</h3>
+                <p>設置月度預算與目標</p>
+            </div>
+            <div class="feature-card" id="currencyConverterBtn">
+                <i class="material-icons">currency_exchange</i>
+                <h3>匯率換算</h3>
+                <p>多幣別轉換工具</p>
+            </div>
+            <div class="feature-card" id="reportBtn">
+                <i class="material-icons">bar_chart</i>
+                <h3>財務報表</h3>
+                <p>查看詳細分析報告</p>
+            </div>
+            <div class="feature-card" id="settingsBtn">
+                <i class="material-icons">settings</i>
+                <h3>系統設定</h3>
+                <p>自定義分類和其他設置</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 編輯交易記錄彈窗 -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>編輯交易記錄</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <form id="editForm" class="transaction-form">
+                <input type="hidden" id="editId">
+                <div class="form-group">
+                    <label for="editAmount">金額</label>
+                    <input type="number" id="editAmount" class="form-control" placeholder="請輸入金額" required min="0" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label for="editCategory">分類</label>
+                    <select id="editCategory" class="form-control" required>
+                        <!-- 動態生成分類選項 -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="editDate">日期</label>
+                    <input type="date" id="editDate" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="editDescription">備註</label>
+                    <textarea id="editDescription" class="form-control" placeholder="新增備註（可選）" rows="2"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
+                    <input type="checkbox" id="editIsRecurring">
+                    <label for="editIsRecurring">設為週期性交易</label>
+                </div>
+                <div id="editRecurringOptions" style="display: none; margin-bottom: 15px;">
+                    <div class="form-group">
+                        <label for="editRecurringType">週期類型</label>
+                        <select id="editRecurringType" class="form-control">
+                            <option value="daily">每日</option>
+                            <option value="weekly">每週</option>
+                            <option value="monthly" selected>每月</option>
+                            <option value="yearly">每年</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRecurringDay">日期</label>
+                        <input type="number" id="editRecurringDay" class="form-control" placeholder="每月幾號" min="1" max="31" value="1">
+                    </div>
+                </div>
+                <img id="editReceiptPreview" class="receipt-preview" style="display: none;">
+                <button type="submit" class="btn btn-block" id="updateBtn">更新</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 預算設定彈窗 -->
+    <div class="modal" id="budgetModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>預算設定</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <form id="budgetForm" class="transaction-form">
+                <div class="form-group">
+                    <label for="monthlyBudget">月度總預算</label>
+                    <input type="number" id="monthlyBudget" class="form-control" placeholder="請輸入月度預算金額" required min="0" step="100">
+                </div>
+                <div class="form-group">
+                    <label>分類預算分配</label>
+                    <div id="categoryBudgets">
+                        <!-- 動態生成分類預算項目 -->
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="warningThreshold">預算警告閾值</label>
+                    <select id="warningThreshold" class="form-control">
+                        <option value="0.5">50% 時警告</option>
+                        <option value="0.7" selected>70% 時警告</option>
+                        <option value="0.8">80% 時警告</option>
+                        <option value="0.9">90% 時警告</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-block" style="background-color: #2196F3;">儲存預算設定</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 匯率換算彈窗 -->
+    <div class="modal" id="currencyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>匯率換算</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="currency-converter">
+                <div class="form-group">
+                    <label for="fromAmount">金額</label>
+                    <input type="number" id="fromAmount" class="form-control" placeholder="請輸入金額" min="0" step="0.01" value="100">
+                </div>
+                <div class="converter-inputs">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="fromCurrency">從</label>
+                        <select id="fromCurrency" class="form-control">
+                            <option value="TWD" selected>新台幣 (TWD)</option>
+                            <option value="USD">美元 (USD)</option>
+                            <option value="JPY">日圓 (JPY)</option>
+                            <option value="EUR">歐元 (EUR)</option>
+                            <option value="CNY">人民幣 (CNY)</option>
+                        </select>
+                    </div>
+                    <div style="padding: 20px 10px;">
+                        <span class="material-icons">swap_horiz</span>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="toCurrency">至</label>
+                        <select id="toCurrency" class="form-control">
+                            <option value="TWD">新台幣 (TWD)</option>
+                            <option value="USD" selected>美元 (USD)</option>
+                            <option value="JPY">日圓 (JPY)</option>
+                            <option value="EUR">歐元 (EUR)</option>
+                            <option value="CNY">人民幣 (CNY)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label>轉換結果</label>
+                    <div id="conversionResult" style="font-size: 1.5rem; font-weight: bold; margin-top: 10px; text-align: center;">
+                        100 TWD = 3.21 USD
+                    </div>
+                    <div style="text-align: center; color: #666; font-size: 0.8rem; margin-top: 5px;">
+                        匯率更新時間: <span id="rateUpdateTime">2025-03-26 08:00</span>
+                    </div>
+                </div>
+                <button id="addConvertedBtn" class="btn btn-block" style="margin-top: 20px; background-color: #2196F3;">
+                    新增轉換後的交易記錄
                 </button>
             </div>
         </div>
-        
-        <!-- 主要內容區域 -->
-        <div class="flex-grow flex flex-col">
-            <!-- 頂部導航 (移動端) -->
-            <header class="bg-white dark:bg-gray-800 shadow-sm p-4 md:hidden sticky top-0 z-30">
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center space-x-3">
-                        <div class="h-10 w-10 bg-primary rounded-xl flex items-center justify-center text-white">
-                            <i class="fas fa-wallet"></i>
-                        </div>
-                        <h1 class="text-xl font-bold" id="mobile-page-title">儀表板</h1>
+    </div>
+
+    <!-- 財務報表彈窗 -->
+    <div class="modal" id="reportModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>財務報表</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <div class="form-group">
+                    <label for="reportPeriod">報表週期</label>
+                    <select id="reportPeriod" class="form-control">
+                        <option value="week">本週</option>
+                        <option value="month" selected>本月</option>
+                        <option value="quarter">本季</option>
+                        <option value="year">本年</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                <div class="stat-card income">
+                    <h3>總收入</h3>
+                    <div class="amount" id="reportIncome">HK$ 0</div>
+                </div>
+                <div class="stat-card expense">
+                    <h3>總支出</h3>
+                    <div class="amount" id="reportExpense">HK$ 0</div>
+                </div>
+                <div class="stat-card balance">
+                    <h3>淨收入</h3>
+                    <div class="amount" id="reportNet">HK$ 0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>節省率</h3>
+                    <div class="amount" id="reportSavingRate">0%</div>
+                </div>
+            </div>
+            <div class="chart-container" style="height: 250px; margin-bottom: 20px;">
+                <canvas id="reportTrendsChart"></canvas>
+            </div>
+            <div class="chart-container" style="height: 250px;">
+                <canvas id="reportCategoryChart"></canvas>
+            </div>
+            <button id="downloadReportBtn" class="btn btn-block" style="margin-top: 20px; background-color: #2196F3;">
+                下載 PDF 報表
+            </button>
+        </div>
+    </div>
+
+    <!-- 系統設定彈窗 -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>系統設定</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <h3 style="margin-bottom: 10px;">自定義分類</h3>
+                <div id="incomeCategories">
+                    <h4>收入分類</h4>
+                    <div class="categories-container" id="incomeCategoriesList">
+                        <!-- 動態生成收入分類 -->
                     </div>
-                    
-                    <div class="flex items-center">
-                        <button id="mobile-theme-toggle" class="p-2 rounded-full text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-gray-200">
-                            <i class="fas fa-moon dark:hidden"></i>
-                            <i class="fas fa-sun hidden dark:inline"></i>
-                        </button>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <input type="text" id="newIncomeCategory" class="form-control" placeholder="新增收入分類">
+                        <button id="addIncomeCategory" class="btn" style="background-color: var(--income-color);">新增</button>
                     </div>
                 </div>
-            </header>
-            
-            <!-- 頁面內容容器 -->
-            <div class="flex-grow p-4 pb-20 md:pb-4 md:p-6 overflow-y-auto">
-                <!-- 儀表板頁面 -->
-                <div id="dashboard" class="page active">
-                    <h2 class="text-2xl font-bold mb-6 md:hidden">儀表板</h2>
-                    <h2 class="text-2xl font-bold mb-6 hidden md:block">財務儀表板</h2>
-                    
-                    <!-- 儀表板摘要指標 -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
-                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">本月收入</h3>
-                            <p id="total-income" class="text-2xl font-bold text-income">$0.00</p>
-                            <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                <span id="income-trend">
-                                    <i class="fas fa-arrow-up text-income mr-1"></i>
-                                    <span>0%</span>
-                                </span>
-                                <span class="ml-1">相比上月</span>
-                            </div>
-                        </div>
-                        
-                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
-                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">本月支出</h3>
-                            <p id="total-expense" class="text-2xl font-bold text-expense">$0.00</p>
-                            <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                <span id="expense-trend">
-                                    <i class="fas fa-arrow-down text-income mr-1"></i>
-                                    <span>0%</span>
-                                </span>
-                                <span class="ml-1">相比上月</span>
-                            </div>
-                        </div>
-                        
-                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
-                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">本月結餘</h3>
-                            <p id="total-balance" class="text-2xl font-bold text-primary">$0.00</p>
-                            <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                <span id="savings-rate">
-                                    <span>存款率: 0%</span>
-                                </span>
-                            </div>
-                        </div>
+                <div id="expenseCategories" style="margin-top: 15px;">
+                    <h4>支出分類</h4>
+                    <div class="categories-container" id="expenseCategoriesList">
+                        <!-- 動態生成支出分類 -->
                     </div>
-                    
-                    <!-- 圖表和最近交易 -->
-                    <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
-                        <!-- 左側：費用分類圖表 -->
-                        <div class="md:col-span-7">
-                            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
-                                <div class="flex justify-between items-center mb-4">
-                                    <h2 class="text-xl font-bold">支出分類</h2>
-                                    
-                                    <!-- 圖表類型切換 -->
-                                    <div class="flex">
-                                        <div class="inline-flex rounded-md shadow-sm" role="group">
-                                            <button id="pie-chart-btn" class="px-4 py-2 text-sm font-medium bg-primary text-white rounded-l-lg hover:bg-primary-dark focus:z-10 focus:outline-none transition-colors">
-                                                <i class="fas fa-chart-pie mr-1"></i>
-                                                圓餅圖
-                                            </button>
-                                            <button id="bar-chart-btn" class="px-4 py-2 text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-r-lg hover:bg-gray-300 dark:hover:bg-gray-600 focus:z-10 focus:outline-none transition-colors">
-                                                <i class="fas fa-chart-bar mr-1"></i>
-                                                柱狀圖
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- 圖表容器 -->
-                                <div class="chart-container" style="height: 300px;">
-                                    <canvas id="expense-chart"></canvas>
-                                </div>
-                                
-                                <!-- 圖表時間範圍選擇 -->
-                                <div class="mt-4 flex justify-center">
-                                    <div class="inline-flex rounded-md shadow-sm" role="group">
-                                        <button data-range="week" class="chart-range-btn px-3 py-1 text-sm font-medium bg-primary text-white rounded-l-lg hover:bg-primary-dark focus:z-10 focus:outline-none transition-colors">
-                                            本週
-                                        </button>
-                                        <button data-range="month" class="chart-range-btn px-3 py-1 text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 focus:z-10 focus:outline-none transition-colors">
-                                            本月
-                                        </button>
-                                        <button data-range="year" class="chart-range-btn px-3 py-1 text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-r-lg hover:bg-gray-300 dark:hover:bg-gray-600 focus:z-10 focus:outline-none transition-colors">
-                                            本年
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- 右側：預算追蹤和最近交易 -->
-                        <div class="md:col-span-5">
-                            <!-- 預算追蹤 -->
-                            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-6">
-                                <div class="flex justify-between items-center mb-4">
-                                    <h2 class="text-xl font-bold">預算追蹤</h2>
-                                    <button class="change-page-btn text-primary hover:text-primary-dark text-sm font-medium transition-colors" data-target="budget">
-                                        調整預算
-                                    </button>
-                                </div>
-                                
-                                <div id="budget-list" class="space-y-4">
-                                    <!-- 預算項目將通過 JavaScript 動態添加 -->
-                                    <div class="text-center text-gray-500 dark:text-gray-400 py-4">
-                                        尚無預算設定
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- 最近交易 -->
-                            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
-                                <div class="flex justify-between items-center mb-4">
-                                    <h2 class="text-xl font-bold">最近交易</h2>
-                                    <button class="change-page-btn text-primary hover:text-primary-dark text-sm font-medium transition-colors" data-target="transactions">
-                                        查看全部
-                                    </button>
-                                </div>
-                                
-                                <div id="recent-transactions" class="space-y-2">
-                                    <!-- 最近交易項目將通過 JavaScript 動態添加 -->
-                                    <div class="text-center text-gray-500 dark:text-gray-400 py-4">
-                                        尚無交易記錄
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <input type="text" id="newExpenseCategory" class="form-control" placeholder="新增支出分類">
+                        <button id="addExpenseCategory" class="btn" style="background-color: var(--expense-color);">新增</button>
                     </div>
-                    
-                    <!-- 新增交易按鈕（懸浮） -->
-                    <button id="dashboard-add-transaction-btn" class="fixed bottom-20 md:bottom-6 right-6 h-14 w-14 rounded-full bg-primary hover:bg-primary-dark text-white shadow-lg flex items-center justify-center text-2xl transition-colors">
-                        <i class="fas fa-plus"></i>
+                </div>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <h3 style="margin-bottom: 10px;">備份與還原</h3>
+                <div style="display: flex; gap: 10px;">
+                    <button id="backupDataBtn" class="btn" style="flex: 1; background-color: #2196F3;">
+                        備份資料
+                    </button>
+                    <button id="restoreDataBtn" class="btn" style="flex: 1; background-color: #FF9800;">
+                        還原資料
                     </button>
                 </div>
-                
-                <!-- 交易記錄頁面 -->
-                <div id="transactions" class="page">
-                    <h2 class="text-2xl font-bold mb-6 md:hidden">交易記錄</h2>
-                    <h2 class="text-2xl font-bold mb-6 hidden md:block">所有交易記錄</h2>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <h3 style="margin-bottom: 10px;">資料清除</h3>
+                <button id="clearDataBtn" class="btn" style="width: 100%; background-color: var(--expense-color);">
+                    清除所有資料
+                </button>
+                <p style="color: #666; font-size: 0.8rem; margin-top: 5px;">
+                    警告：此操作將清除所有交易記錄和設定，且無法還原。
+                </p>
+            </div>
+            <div>
+                <h3 style="margin-bottom: 10px;">關於應用</h3>
+                <p style="margin-bottom: 5px;">智能記帳助手 v1.0.0</p>
+                <p style="color: #666; font-size: 0.8rem;">
+                    © 2025 All Rights Reserved
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通知彈窗 -->
+    <div class="toast" id="toast">
+        操作已完成
+    </div>
+
+    <script>
+        // 類別定義及常量
+        class Transaction {
+            constructor(id, type, amount, category, date, description, isRecurring = false, recurringType = null, recurringDay = null, receiptImage = null) {
+                this.id = id;
+                this.type = type; // 'income' 或 'expense'
+                this.amount = amount;
+                this.category = category;
+                this.date = date;
+                this.description = description;
+                this.isRecurring = isRecurring;
+                this.recurringType = recurringType; // 'daily', 'weekly', 'monthly', 'yearly'
+                this.recurringDay = recurringDay;
+                this.receiptImage = receiptImage; // Base64 編碼的圖片
+                this.createdAt = new Date().toISOString();
+            }
+        }
+
+        // 預設分類
+        const DEFAULT_CATEGORIES = {
+            income: ['薪水', '獎金', '投資收益', '副業', '禮金', '退款', '其他收入'],
+            expense: ['飲食', '交通', '購物', '娛樂', '住宿', '醫療', '教育', '保險', '捐款', '其他支出']
+        };
+
+        // 預設匯率 (相對於 TWD)
+        const DEFAULT_EXCHANGE_RATES = {
+            TWD: 1,
+            USD: 0.03214,
+            JPY: 4.8233,
+            EUR: 0.02956,
+            CNY: 0.2328
+        };
+
+        // 資料管理類
+        class DataManager {
+            constructor() {
+                this.transactions = [];
+                this.categories = {...DEFAULT_CATEGORIES};
+                this.budget = {
+                    monthly: 15000,
+                    categories: {},
+                    warningThreshold: 0.7
+                };
+                this.exchangeRates = {...DEFAULT_EXCHANGE_RATES};
+                this.rateUpdateTime = new Date().toISOString();
+                this.loadData();
+            }
+
+            // 從 localStorage 讀取資料
+            loadData() {
+                try {
+                    const savedTransactions = localStorage.getItem('transactions');
+                    if (savedTransactions) {
+                        this.transactions = JSON.parse(savedTransactions);
+                    }
+
+                    const savedCategories = localStorage.getItem('categories');
+                    if (savedCategories) {
+                        this.categories = JSON.parse(savedCategories);
+                    }
+
+                    const savedBudget = localStorage.getItem('budget');
+                    if (savedBudget) {
+                        this.budget = JSON.parse(savedBudget);
+                    }
+
+                    const savedRates = localStorage.getItem('exchangeRates');
+                    if (savedRates) {
+                        this.exchangeRates = JSON.parse(savedRates);
+                        this.rateUpdateTime = localStorage.getItem('rateUpdateTime') || this.rateUpdateTime;
+                    }
+                } catch (error) {
+                    console.error('載入資料時發生錯誤:', error);
+                    this.showToast('載入資料時發生錯誤', 'error');
+                }
+            }
+
+            // 儲存資料到 localStorage
+            saveData() {
+                try {
+                    localStorage.setItem('transactions', JSON.stringify(this.transactions));
+                    localStorage.setItem('categories', JSON.stringify(this.categories));
+                    localStorage.setItem('budget', JSON.stringify(this.budget));
+                    localStorage.setItem('exchangeRates', JSON.stringify(this.exchangeRates));
+                    localStorage.setItem('rateUpdateTime', this.rateUpdateTime);
+                } catch (error) {
+                    console.error('儲存資料時發生錯誤:', error);
+                    this.showToast('儲存資料時發生錯誤', 'error');
+                }
+            }
+
+            // 新增交易記錄
+            addTransaction(transaction) {
+                if (!transaction.id) {
+                    transaction.id = Date.now().toString();
+                }
+                this.transactions.push(transaction);
+                this.saveData();
+                return transaction;
+            }
+
+            // 更新交易記錄
+            updateTransaction(updatedTransaction) {
+                const index = this.transactions.findIndex(t => t.id === updatedTransaction.id);
+                if (index !== -1) {
+                    this.transactions[index] = updatedTransaction;
+                    this.saveData();
+                    return true;
+                }
+                return false;
+            }
+
+            // 刪除交易記錄
+            deleteTransaction(id) {
+                const index = this.transactions.findIndex(t => t.id === id);
+                if (index !== -1) {
+                    this.transactions.splice(index, 1);
+                    this.saveData();
+                    return true;
+                }
+                return false;
+            }
+
+            // 取得所有交易記錄
+            getAllTransactions() {
+                return [...this.transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+            }
+
+            // 取得篩選後的交易記錄
+            getFilteredTransactions(type = 'all', category = 'all', dateFrom = null, dateTo = null) {
+                return this.getAllTransactions().filter(transaction => {
+                    const typeMatch = type === 'all' || transaction.type === type;
+                    const categoryMatch = category === 'all' || transaction.category === category;
                     
-                    <!-- 過濾器 -->
-                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-4">
-                        <div class="flex flex-col md:flex-row justify-between items-start 
+                    let dateMatch = true;
+                    const transactionDate = new Date(transaction.date);
+                    
+                    if (dateFrom) {
+                        const fromDate = new Date(dateFrom);
+                        dateMatch = dateMatch && transactionDate >= fromDate;
+                    }
+                    
+                    if (dateTo) {
+                        const toDate = new Date(dateTo);
+                        toDate.setHours(23, 59, 59, 999); // 設定到當天結束
+                        dateMatch = dateMatch && transactionDate <= toDate;
+                    }
+                    
+                    return typeMatch && categoryMatch && dateMatch;
+                });
+            }
+
+            // 取得特定日期範圍的交易記錄
+            getTransactionsByDateRange(dateFrom, dateTo) {
+                return this.getAllTransactions().filter(transaction => {
+                    const transactionDate = new Date(transaction.date);
+                    const fromDate = new Date(dateFrom);
+                    const toDate = new Date(dateTo);
+                    toDate.setHours(23, 59, 59, 999); // 設定到當天結束
+                    
+                    return transactionDate >= fromDate && transactionDate <= toDate;
+                });
+            }
+
+            // 取得今日交易記錄
+            getTodayTransactions() {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                
+                return this.getAllTransactions().filter(transaction => {
+                    const transactionDate = new Date(transaction.date);
+                    return transactionDate >= today && transactionDate < tomorrow;
+                });
+            }
+
+            // 取得本月交易記錄
+            getMonthTransactions() {
+                const today = new Date();
+                const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                lastDay.setHours(23, 59, 59, 999);
+                
+                return this.getAllTransactions().filter(transaction => {
+                    const transactionDate = new Date(transaction.date);
+                    return transactionDate >= firstDay && transactionDate <= lastDay;
+                });
+            }
+
+            // 計算統計數據
+            calculateStats() {
+                const todayTransactions = this.getTodayTransactions();
+                const monthTransactions = this.getMonthTransactions();
+                
+                const todayIncome = todayTransactions
+                    .filter(t => t.type === 'income')
+                    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+                    
+                const todayExpense = todayTransactions
+                    .filter(t => t.type === 'expense')
+                    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+                    
+                const monthIncome = monthTransactions
+                    .filter(t => t.type === 'income')
+                    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+                    
+                const monthExpense = monthTransactions
+                    .filter(t => t.type === 'expense')
+                    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+                    
+                const monthBalance = monthIncome - monthExpense;
+                const budgetUsage = monthExpense / this.budget.monthly;
+                
+                return {
+                    todayIncome,
+                    todayExpense,
+                    monthIncome,
+                    monthExpense,
+                    monthBalance,
+                    budgetUsage
+                };
+            }
+
+            // 按類別分組統計
+            getCategoryStats(type) {
+                const transactions = this.getMonthTransactions().filter(t => t.type === type);
+                const stats = {};
+                
+                transactions.forEach(t => {
+                    if (!stats[t.category]) {
+                        stats[t.category] = 0;
+                    }
+                    stats[t.category] += parseFloat(t.amount);
+                });
+                
+                return stats;
+            }
+
+            // 新增自定義分類
+            addCategory(type, categoryName) {
+                if (!this.categories[type].includes(categoryName)) {
+                    this.categories[type].push(categoryName);
+                    this.saveData();
+                    return true;
+                }
+                return false;
+            }
+
+            // 刪除自定義分類
+            deleteCategory(type, categoryName) {
+                const index = this.categories[type].indexOf(categoryName);
+                if (index !== -1) {
+                    this.categories[type].splice(index, 1);
+                    this.saveData();
+                    return true;
+                }
+                return false;
+            }
+
+            // 更新預算設定
+            updateBudget(budget) {
+                this.budget = budget;
+                this.saveData();
+            }
+
+            // 獲取匯率
+            getExchangeRate(fromCurrency, toCurrency) {
+                const rateFromToTWD = this.exchangeRates[fromCurrency];
+                const rateTWDToTarget = 1 / this.exchangeRates[toCurrency];
+                return rateFromToTWD * rateTWDToTarget;
+            }
+
+            // 貨幣轉換
+            convertCurrency(amount, fromCurrency, toCurrency) {
+                const rate = this.getExchangeRate(fromCurrency, toCurrency);
+                return amount * rate;
+            }
+
+            // 更新匯率 (模擬 API 調用)
+            updateExchangeRates() {
+                // 實際應用中，這裡會調用外部 API
+                // 目前使用模擬數據，稍微隨機化匯率
+                const randomFactor = 0.98 + Math.random() * 0.04; // 0.98 - 1.02
+                
+                Object.keys(this.exchangeRates).forEach(currency => {
+                    if (currency !== 'TWD') {
+                        this.exchangeRates[currency] *= randomFactor;
+                    }
+                });
+                
+                this.rateUpdateTime = new Date().toISOString();
+                this.saveData();
+                return this.exchangeRates;
+            }
+
+            // 匯出 CSV
+            exportToCSV() {
+                const headers = ["ID", "類型", "金額", "分類", "日期", "備註", "週期性", "週期類型", "週期日"];
+                const rows = this.getAllTransactions().map(t => [
+                    t.id,
+                    t.type === 'income' ? '收入' : '支出',
+                    t.amount,
+                    t.category,
+                    t.date,
+                    t.description,
+                    t.isRecurring ? '是' : '否',
+                    t.recurringType ? t.recurringType : '',
+                    t.recurringDay ? t.recurringDay : ''
+                ]);
+                
+                const csvContent = [
+                    headers.join(','),
+                    ...rows.map(row => row.map(cell => 
+                        typeof cell === 'string' && cell.includes(',') ? `"${cell}"` : cell
+                    ).join(','))
+                ].join('\n');
+                
+                return csvContent;
+            }
+
+            // 匯入 CSV
+            importFromCSV(csvContent) {
+                try {
+                    const lines = csvContent.split('\n');
+                    const headers = lines[0].split(',');
+                    
+                    // 進行基本格式驗證
+                    if (!headers.includes("ID") || !headers.includes("類型") || !headers.includes("金額")) {
+                        throw new Error("CSV 格式不正確");
+                    }
+                    
+                    for (let i = 1; i < lines.length; i++) {
+                        if (!lines[i].trim()) continue;
+                        
+                        const values = this.parseCSVLine(lines[i]);
+                        const typeIndex = headers.indexOf("類型");
+                        const amountIndex = headers.indexOf("金額");
+                        const categoryIndex = headers.indexOf("分類");
+                        const dateIndex = headers.indexOf("日期");
+                        const descriptionIndex = headers.indexOf("備註");
+                        const recurringIndex = headers.indexOf("週期性");
+                        const recurringTypeIndex = headers.indexOf("週期類型");
+                        const recurringDayIndex = headers.indexOf("週期日");
+                        
+                        const transaction = new Transaction(
+                            Date.now().toString() + i, // 生成新 ID 避免衝突
+                            values[typeIndex] === '收入' ? 'income' : 'expense',
+                            parseFloat(values[amountIndex]),
+                            values[categoryIndex],
+                            values[dateIndex],
+                            values[descriptionIndex],
+                            values[recurringIndex] === '是',
+                            values[recurringTypeIndex] || null,
+                            values[recurringDayIndex] ? parseInt(values[recurringDayIndex]) : null
+                        );
+                        
+                        this.addTransaction(transaction);
+                    }
+                    
+                    return true;
+                } catch (error) {
+                    console.error('CSV 匯入錯誤:', error);
+                    return false;
+                }
+            }
+
+            // 解析 CSV 行（處理引號內的逗號）
+            parseCSVLine(line) {
+                const result = [];
+                let current = '';
+                let inQuotes = false;
+                
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        result.push(current);
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                
+                result.push(current);
+                return result;
+            }
+
+            // 清除所有資料
+            clearAllData() {
+                this.transactions = [];
+                this.categories = {...DEFAULT_CATEGORIES};
+                this.budget = {
+                    monthly: 15000,
+                    categories: {},
+                    warningThreshold: 0.7
+                };
+                this.exchangeRates = {...DEFAULT_EXCHANGE_RATES};
+                this.rateUpdateTime = new Date().toISOString();
+                this.saveData();
+                return true;
+            }
+
+            // 創建數據備份
+            createBackup() {
+                const backupData = {
+                    transactions: this.transactions,
+                    categories: this.categories,
+                    budget: this.budget,
+                    exchangeRates: this.exchangeRates,
+                    rateUpdateTime: this.rateUpdateTime,
+                    backupDate: new Date().toISOString()
+                };
+                
+                return JSON.stringify(backupData);
+            }
+
+            // 還原數據備份
+            restoreBackup(backupString) {
+                try {
+                    const backupData = JSON.parse(backupString);
+                    
+                    if (!backupData.transactions || !backupData.categories) {
+                        throw new Error("備份資料格式不正確");
+                    }
+                    
+                    this.transactions = backupData.transactions;
+                    this.categories = backupData.categories;
+                    this.budget = backupData.budget || this.budget;
+                    this.exchangeRates = backupData.exchangeRates || this.exchangeRates;
+                    this.rateUpdateTime = backupData.rateUpdateTime || this.rateUpdateTime;
+                    
+                    this.saveData();
+                    return true;
+                } catch (error) {
+                    console.error('還原備份時發生錯誤:', error);
+                    return false;
+                }
+            }
+
+            // 顯示通知
+            showToast(message, type = 'success') {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.className = 'toast ' + type + ' show';
+                
+                setTimeout(() => {
+                    toast.className = toast.className.replace('show', '');
+                }, 3000);
+            }
+        }
+
+        // UI 控制類
+        class UIController {
+            constructor(dataManager) {
+                this.dataManager = dataManager;
+                this.currentType = 'income';
+                this.activeChartType = 'pie';
+                this.transactionChart = null;
+                this.reportTrendsChart = null;
+                this.reportCategoryChart = null;
+                this.initializeUI();
+                this.setupEventListeners();
+                this.updateUI();
+            }
+
+            // 初始化 UI
+            initializeUI() {
+                // 設定今天日期為表單預設值
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('date').value = today;
+                
+                // 初始化圖表
+                this.initializeCharts();
+                
+                // 初始化分類選項
+                this.updateCategoryOptions();
+            }
+
+            // 初始化圖表
+            initializeCharts() {
+                const ctx = document.getElementById('transactionChart').getContext('2d');
+                this.transactionChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            data: [],
+                            backgroundColor: [],
+                            borderColor: 'white',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    font: {
+                                        size: 12
+                                    },
+                                    padding: 15
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        let value = context.raw || 0;
+                                        let total = context.dataset.data.reduce((acc, curr) => acc + curr, 0);
+                                        let percentage = Math.round((value / total * 100) * 10) / 10;
+                                        return `${label}: HK$ ${value} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 初始化報表圖表
+            initializeReportCharts() {
+                const trendsCtx = document.getElementById('reportTrendsChart').getContext('2d');
+                if (this.reportTrendsChart) {
+                    this.reportTrendsChart.destroy();
+                }
+                
+                this.reportTrendsChart = new Chart(trendsCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: '收入',
+                                data: [],
+                                borderColor: '#4CAF50',
+                                backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                                tension: 0.3,
+                                fill: true
+                            },
+                            {
+                                label: '支出',
+                                data: [],
+                                borderColor: '#F44336',
+                                backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                                tension: 0.3,
+                                fill: true
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top'
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return 'HK$ ' + value;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                const categoryCtx = document.getElementById('reportCategoryChart').getContext('2d');
+                if (this.reportCategoryChart) {
+                    this.reportCategoryChart.destroy();
+                }
+                
+                this.reportCategoryChart = new Chart(categoryCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: '支出分佈',
+                                data: [],
+                                backgroundColor: []
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return 'HK$ ' + context.raw;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return 'HK$ ' + value;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 設置事件監聽器
+            setupEventListeners() {
+                // 交易類型切換
+                const formTypeBtns = document.querySelectorAll('.form-type-btn');
+                formTypeBtns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        formTypeBtns.forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.currentType = btn.getAttribute('data-type');
+                        this.updateSubmitButton();
+                        this.updateCategoryOptions();
+                    });
+                });
+
+                // 圖表類型切換
+                const chartTypeBtns = document.querySelectorAll('.chart-type-toggle button');
+                chartTypeBtns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        chartTypeBtns.forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.activeChartType = btn.getAttribute('data-chart');
+                        this.updateChart(this.currentType);
+                    });
+                });
+
+                // 圖表頁籤切換
+                const tabBtns = document.querySelectorAll('.tab');
+                tabBtns.forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        tabBtns.forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        const type = tab.getAttribute('data-tab');
+                        this.updateChart(type);
+                    });
+                });
+
+                // 交易表單提交
+                document.getElementById('transactionForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleTransactionSubmit();
+                });
+
+                // 編輯表單提交
+                document.getElementById('editForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleEditSubmit();
+                });
+
+                // 預算表單提交
+                document.getElementById('budgetForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleBudgetSubmit();
+                });
+
+                // 篩選按鈕
+                document.getElementById('applyFilter').addEventListener('click', () => {
+                    this.applyFilters();
+                });
+
+                // 匯出按鈕
+                document.getElementById('exportBtn').addEventListener('click', () => {
+                    this.exportData();
+                });
+
+                // 匯入按鈕
+                document.getElementById('importBtn').addEventListener('click', () => {
+                    this.importData();
+                });
+
+                // 週期性交易勾選框
+                document.getElementById('isRecurring').addEventListener('change', function() {
+                    document.getElementById('recurringOptions').style.display = this.checked ? 'block' : 'none';
+                });
+
+                // 編輯時的週期性交易勾選框
+                document.getElementById('editIsRecurring').addEventListener('change', function() {
+                    document.getElementById('editRecurringOptions').style.display = this.checked ? 'block' : 'none';
+                });
+
+                // 收據上傳
+                document.getElementById('receiptUpload').addEventListener('click', () => {
+                    document.getElementById('receiptFile').click();
+                });
+
+                document.getElementById('receiptFile').addEventListener('change', (e) => {
+                    this.handleImageUpload(e.target.files[0], 'receiptPreview');
+                });
+
+                // 功能按鈕
+                document.getElementById('budgetSettingBtn').addEventListener('click', () => {
+                    this.openBudgetModal();
+                });
+
+                document.getElementById('currencyConverterBtn').addEventListener('click', () => {
+                    this.openCurrencyModal();
+                });
+
+                document.getElementById('reportBtn').addEventListener('click', () => {
+                    this.openReportModal();
+                });
+
+                document.getElementById('settingsBtn').addEventListener('click', () => {
+                    this.openSettingsModal();
+                });
+
+                // 匯率轉換
+                document.getElementById('fromAmount').addEventListener('input', () => {
+                    this.updateCurrencyConversion();
+                });
+
+                document.getElementById('fromCurrency').addEventListener('change', () => {
+                    this.updateCurrencyConversion();
+                });
+
+                document.getElementById('toCurrency').addEventListener('change', () => {
+                    this.updateCurrencyConversion();
+                });
+
+                // 轉換後新增交易
+                document.getElementById('addConvertedBtn').addEventListener('click', () => {
+                    this.addConvertedTransaction();
+                });
+
+                // 報表週期變更
+                document.getElementById('reportPeriod').addEventListener('change', () => {
+                    this.updateReport();
+                });
+
+                // 下載報表
+                document.getElementById('downloadReportBtn').addEventListener('click', () => {
+                    this.dataManager.showToast('報表下載開始');
+                });
+
+                // 類別管理
+                document.getElementById('addIncomeCategory').addEventListener('click', () => {
+                    const input = document.getElementById('newIncomeCategory');
+                    if (input.value.trim()) {
+                        this.dataManager.addCategory('income', input.value.trim());
+                        input.value = '';
+                        this.updateCategorySettings();
+                        this.updateCategoryOptions();
+                    }
+                });
+
+                document.getElementById('addExpenseCategory').addEventListener('click', () => {
+                    const input = document.getElementById('newExpenseCategory');
+                    if (input.value.trim()) {
+                        this.dataManager.addCategory('expense', input.value.trim());
+                        input.value = '';
+                        this.updateCategorySettings();
+                        this.updateCategoryOptions();
+                    }
+                });
+
+                // 數據備份還原
+                document.getElementById('backupDataBtn').addEventListener('click', () => {
+                    this.backupData();
+                });
+
+                document.getElementById('restoreDataBtn').addEventListener('click', () => {
+                    this.restoreData();
+                });
+
+                // 清除數據
+                document.getElementById('clearDataBtn').addEventListener('click', () => {
+                    if (confirm('警告：此操作將刪除所有資料且無法還原！確定要繼續嗎？')) {
+                        this.dataManager.clearAllData();
+                        this.updateUI();
+                        this.dataManager.showToast('所有資料已清除', 'success');
+                        this.closeAllModals();
+                    }
+                });
+
+                // 幫助按鈕
+                document.getElementById('helpBtn').addEventListener('click', () => {
+                    alert(`智能記帳助手使用說明：
+
+1. 新增交易：選擇收入或支出，填寫金額、分類和日期
+2. 週期性交易：勾選後可設定每日/週/月/年自動記帳
+3. 收據上傳：可以拍照或上傳收據照片
+4. 篩選記錄：使用上方篩選條件查看特定交易
+5. 預算管理：設定月度預算和分類預算
+6. 匯率換算：支援多種貨幣之間的轉換
+7. 財務報表：查看收支趨勢和分類統計
+8. 備份還原：定期備份您的資料很重要
+
+快速鍵：Ctrl+Enter 可快速提交表單
+`);
+                });
+
+                // 快速鍵支援
+                document.addEventListener('keydown', (e) => {
+                    // Ctrl+Enter 提交表單
+                    if (e.ctrlKey && e.key === 'Enter') {
+                        const activeForm = document.activeElement.closest('form');
+                        if (activeForm) {
+                            const submitEvent = new Event('submit', {
+                                bubbles: true,
+                                cancelable: true
+                            });
+                            activeForm.dispatchEvent(submitEvent);
+                        }
+                    }
+                });
+
+                // 彈窗關閉按鈕
+                document.querySelectorAll('.close-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.closeAllModals();
+                    });
+                });
+
+                // 點擊彈窗外部關閉
+                document.querySelectorAll('.modal').forEach(modal => {
+                    modal.addEventListener('click', (e) => {
+                        if (e.target === modal) {
+                            this.closeAllModals();
+                        }
+                    });
+                });
+            }
+
+            // 更新 UI
+            updateUI() {
+                this.updateStats();
+                this.updateTransactionsList();
+                this.updateChart('income');
+                this.updateBudgetUI();
+                this.updateCurrencyUI();
+            }
+
+            // 更新統計數據
+            updateStats() {
+                const stats = this.dataManager.calculateStats();
+                
+                document.getElementById('todayIncome').textContent = 'HK$ ' + stats.todayIncome.toLocaleString();
+                document.getElementById('todayExpense').textContent = 'HK$ ' + stats.todayExpense.toLocaleString();
+                document.getElementById('monthlyBalance').textContent = 'HK$ ' + stats.monthBalance.toLocaleString();
+                
+                const budgetUsagePercent = Math.min(stats.budgetUsage * 100, 100).toFixed(0);
+                const budget = this.dataManager.budget.monthly;
+                document.getElementById('budgetAmount').textContent = `HK$ ${stats.monthExpense.toLocaleString()} / HK$ ${budget.toLocaleString()}`;
+                
+                const progressBar = document.getElementById('budgetProgressBar');
+                progressBar.style.width = budgetUsagePercent + '%';
+                
+                // 根據預算使用率變更顏色
+                const warningThreshold = this.dataManager.budget.warningThreshold;
+                progressBar.className = 'progress-bar';
+                if (stats.budgetUsage >= 1) {
+                    progressBar.classList.add('danger');
+                } else if (stats.budgetUsage >= warningThreshold) {
+                    progressBar.classList.add('warning');
+                }
+            }
+
+            // 更新交易記錄列表
+            updateTransactionsList(transactions = null) {
+                const container = document.getElementById('transactionsList');
+                container.innerHTML = '';
+                
+                const transactionsToShow = transactions || this.dataManager.getAllTransactions();
+                
+                if (transactionsToShow.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="material-icons">account_balance_wallet</i>
+                            <p>尚無交易記錄</p>
+                            <p>開始添加您的第一筆收支吧！</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                transactionsToShow.forEach(transaction => {
+                    const item = document.createElement('div');
+                    item.className = 'transaction-item';
+                    
+                    const formattedDate = new Date(transaction.date).toLocaleDateString();
+                    const recurringLabel = transaction.isRecurring ? 
+                        `<span class="recurring-label">週期性</span>` : '';
+                    
+                    item.innerHTML = `
+                        <div class="transaction-info">
+                            <div class="transaction-title">
+                                ${transaction.category} ${recurringLabel}
+                            </div>
+                            <div class="transaction-date">${formattedDate}</div>
+                            <div class="transaction-description">${transaction.description || ''}</div>
+                        </div>
+                        <div class="transaction-amount ${transaction.type}">
+                            ${transaction.type === 'income' ? '+' : '-'} HK$ ${parseFloat(transaction.amount).toLocaleString()}
+                        </div>
+                        <div class="transaction-actions">
+                            <button class="action-btn edit-btn" data-id="${transaction.id}">
+                                <span class="material-icons">edit</span>
+                            </button>
+                            <button class="action-btn delete-btn" data-id="${transaction.id}">
+                                <span class="material-icons">delete</span>
+                            </button>
+                        </div>
+                    `;
+                    
+                    container.appendChild(item);
+                });
+                
+                // 添加編輯和刪除事件
+                document.querySelectorAll('.edit-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.openEditModal(btn.getAttribute('data-id'));
+                    });
+                });
+                
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        if (confirm('確定要刪除這筆交易記錄嗎？')) {
+                            this.deleteTransaction(btn.getAttribute('data-id'));
+                        }
+                    });
+                });
+            }
+
+            // 更新圖表
+            updateChart(type) {
+                const categoryStats = this.dataManager.getCategoryStats(type);
+                const labels = Object.keys(categoryStats);
+                const data = Object.values(categoryStats);
+                
+                // 生成顏色
+                const colors = labels.map((_, index) => {
+                    if (type === 'income') {
+                        // 不同綠色色調
+                        return `hsla(120, 70%, ${45 + (index * 5) % 30}%, 0.8)`;
+                    } else {
+                        // 不同紅色色調
+                        return `hsla(0, 80%, ${45 + (index * 5) % 30}%, 0.8)`;
+                    }
+                });
+                
+                // 更新圖表
+                this.transactionChart.data.labels = labels;
+                this.transactionChart.data.datasets[0].data = data;
+                this.transactionChart.data.datasets[0].backgroundColor = colors;
+                
+                // 切換圖表類型
+                this.transactionChart.config.type = this.activeChartType;
+                
+                this.transactionChart.update();
+            }
+
+            // 更新預算 UI
+            updateBudgetUI() {
+                // 在預算設定模態窗中填入目前預算
+                document.getElementById('monthlyBudget').value = this.dataManager.budget.monthly;
+                
+                // 更新分類預算
+                const categoryBudgetsContainer = document.getElementById('categoryBudgets');
+                categoryBudgetsContainer.innerHTML = '';
+                
+                this.dataManager.categories.expense.forEach(category => {
+                    const budgetForCategory = this.dataManager.budget.categories[category] || 0;
+                    
+                    const categoryDiv = document.createElement('div');
+                    categoryDiv.style.display = 'flex';
+                    categoryDiv.style.gap = '10px';
+                    categoryDiv.style.marginBottom = '10px';
+                    
+                    categoryDiv.innerHTML = `
+                        <div style="flex: 2;">${category}</div>
+                        <div style="flex: 3;">
+                            <input type="number" class="form-control category-budget" 
+                                data-category="${category}" 
+                                value="${budgetForCategory}" 
+                                min="0" step="100">
+                        </div>
+                    `;
+                    
+                    categoryBudgetsContainer.appendChild(categoryDiv);
+                });
+            }
+
+            // 更新外幣匯率 UI
+            updateCurrencyUI() {
+                // 設定匯率更新時間
+                const updateTime = new Date(this.dataManager.rateUpdateTime);
+                document.getElementById('rateUpdateTime').textContent = updateTime.toLocaleString();
+                
+                // 更新匯率換算結果
+                this.updateCurrencyConversion();
+            }
+
+            // 更新貨幣轉換計算
+            updateCurrencyConversion() {
+                const amount = parseFloat(document.getElementById('fromAmount').value) || 0;
+                const fromCurrency = document.getElementById('fromCurrency').value;
+                const toCurrency = document.getElementById('toCurrency').value;
+                
+                const result = this.dataManager.convertCurrency(amount, fromCurrency, toCurrency);
+                const resultFormatted = result.toFixed(2);
+                
+                document.getElementById('conversionResult').textContent = 
+                    `${amount} ${fromCurrency} = ${resultFormatted} ${toCurrency}`;
+            }
+
+            // 更新分類選項
+            updateCategoryOptions() {
+                const categorySelect = document.getElementById('category');
+                const editCategorySelect = document.getElementById('editCategory');
+                const filterCategorySelect = document.getElementById('categoryFilter');
+                
+                // 清空現有選項
+                categorySelect.innerHTML = '';
+                editCategorySelect.innerHTML = '';
+                
+                // 獲取當前類型的分類列表
+                const categories = this.dataManager.categories[this.currentType];
+                
+                // 添加分類選項到添加表單
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category;
+                    categorySelect.appendChild(option);
+                    
+                    const editOption = option.cloneNode(true);
+                    editCategorySelect.appendChild(editOption);
+                });
+                
+                // 更新篩選器分類選項
+                filterCategorySelect.innerHTML = '<option value="all">所有分類</option>';
+                
+                const allCategories = [
+                    ...this.dataManager.categories.income,
+                    ...this.dataManager.categories.expense
+                ];
+                
+                const uniqueCategories = [...new Set(allCategories)];
+                
+                uniqueCategories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category;
+                    filterCategorySelect.appendChild(option);
+                });
+                
+                // 更新分類標籤
+                this.updateCategoryTags();
+            }
+
+            // 更新分類標籤
+            updateCategoryTags() {
+                const categoryTags = document.getElementById('categoryTags');
+                categoryTags.innerHTML = '';
+                
+                this.dataManager.categories[this.currentType].forEach(category => {
+                    const tag = document.createElement('div');
+                    tag.className = 'category-tag';
+                    tag.textContent = category;
+                    tag.setAttribute('data-category', category);
+                    
+                    tag.addEventListener('click', () => {
+                        document.getElementById('category').value = category;
+                    });
+                    
+                    categoryTags.appendChild(tag);
+                });
+            }
+
+            // 更新分類設定
+            updateCategorySettings() {
+                const incomeList = document.getElementById('incomeCategoriesList');
+                const expenseList = document.getElementById('expenseCategoriesList');
+                
+                // 清空列表
+                incomeList.innerHTML = '';
+                expenseList.innerHTML = '';
+                
+                // 添加收入分類
+                this.dataManager.categories.income.forEach(category => {
+                    const tag = document.createElement('div');
+                    tag.className = 'category-tag';
+                    tag.textContent = category;
+                    
+                    // 只允許刪除非預設分類
+                    if (!DEFAULT_CATEGORIES.income.includes(category)) {
+                        tag.innerHTML += `
+                            <span class="material-icons" style="font-size: 16px; margin-left: 5px; cursor: pointer;"
+                                  data-type="income" data-category="${category}">
+                                close
+                            </span>
+                        `;
+                    }
+                    
+                    incomeList.appendChild(tag);
+                });
+                
+                // 添加支出分類
+                this.dataManager.categories.expense.forEach(category => {
+                    const tag = document.createElement('div');
+                    tag.className = 'category-tag';
+                    tag.textContent = category;
+                    
+                    // 只允許刪除非預設分類
+                    if (!DEFAULT_CATEGORIES.expense.includes(category)) {
+                        tag.innerHTML += `
+                            <span class="material-icons" style="font-size: 16px; margin-left: 5px; cursor: pointer;"
+                                  data-type="expense" data-category="${category}">
+                                close
+                            </span>
+                        `;
+                    }
+                    
+                    expenseList.appendChild(tag);
+                });
+                
+                // 添加刪除分類事件
+                document.querySelectorAll('.category-tag .material-icons').forEach(icon => {
+                    icon.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const type = icon.getAttribute('data-type');
+                        const category = icon.getAttribute('data-category');
+                        
+                        if (confirm(`確定要刪除「${category}」分類嗎？相關交易記錄將保留但分類可能顯示異常。`)) {
+                            this.dataManager.deleteCategory(type, category);
+                            this.updateCategorySettings();
+                            this.updateCategoryOptions();
+                        }
+                    });
+                });
+            }
+
+            // 更新提交按鈕
+            updateSubmitButton() {
+                const submitBtn = document.getElementById('submitBtn');
+                if (this.currentType === 'income') {
+                    submitBtn.textContent = '新增收入';
+                    submitBtn.className = 'btn btn-block btn-income';
+                } else {
+                    submitBtn.textContent = '新增支出';
+                    submitBtn.className = 'btn btn-block btn-expense';
+                }
+            }
+
+            // 處理交易提交
+            handleTransactionSubmit() {
+                const amount = parseFloat(document.getElementById('amount').value);
+                const category = document.getElementById('category').value;
+                const date = document.getElementById('date').value;
+                const description = document.getElementById('description').value;
+                const isRecurring = document.getElementById('isRecurring').checked;
+                
+                let recurringType = null;
+                let recurringDay = null;
+                
+                if (isRecurring) {
+                    recurringType = document.getElementById('recurringType').value;
+                    recurringDay = parseInt(document.getElementById('recurringDay').value);
+                }
+                
+                // 獲取收據圖片
+                const receiptImg = document.getElementById('receiptPreview');
+                let receiptImage = null;
+                if (receiptImg.style.display !== 'none') {
+                    receiptImage = receiptImg.src;
+                }
+                
+                // 創建交易對象
+                const transaction = new Transaction(
+                    Date.now().toString(),
+                    this.currentType,
+                    amount,
+                    category,
+                    date,
+                    description,
+                    isRecurring,
+                    recurringType,
+                    recurringDay,
+                    receiptImage
+                );
+                
+                // 添加交易記錄
+                this.dataManager.addTransaction(transaction);
+                
+                // 重置表單
+                document.getElementById('transactionForm').reset();
+                document.getElementById('date').value = new Date().toISOString().split('T')[0];
+                document.getElementById('receiptPreview').style.display = 'none';
+                document.getElementById('recurringOptions').style.display = 'none';
+                
+                // 更新 UI
+                this.updateUI();
+                
+                // 顯示成功消息
+                this.dataManager.showToast('交易記錄已新增', 'success');
+            }
+
+            // 處理編輯提交
+            handleEditSubmit() {
+                const id = document.getElementById('editId').value;
+                const transaction = this.dataManager.getAllTransactions().find(t => t.id === id);
+                
+                if (!transaction) {
+                    this.dataManager.showToast('找不到交易記錄', 'error');
+                    return;
+                }
+               // 更新交易數據
+                transaction.amount = parseFloat(document.getElementById('editAmount').value);
+                transaction.category = document.getElementById('editCategory').value;
+                transaction.date = document.getElementById('editDate').value;
+                transaction.description = document.getElementById('editDescription').value;
+                transaction.isRecurring = document.getElementById('editIsRecurring').checked;
+                
+                if (transaction.isRecurring) {
+                    transaction.recurringType = document.getElementById('editRecurringType').value;
+                    transaction.recurringDay = parseInt(document.getElementById('editRecurringDay').value);
+                } else {
+                    transaction.recurringType = null;
+                    transaction.recurringDay = null;
+                }
+                
+                // 更新交易記錄
+                this.dataManager.updateTransaction(transaction);
+                
+                // 關閉模態窗
+                this.closeAllModals();
+                
+                // 更新 UI
+                this.updateUI();
+                
+                // 顯示成功消息
+                this.dataManager.showToast('交易記錄已更新', 'success');
+            }
+
+            // 處理預算提交
+            handleBudgetSubmit() {
+                const monthlyBudget = parseFloat(document.getElementById('monthlyBudget').value);
+                const warningThreshold = parseFloat(document.getElementById('warningThreshold').value);
+                
+                // 收集分類預算
+                const categoryBudgets = {};
+                document.querySelectorAll('.category-budget').forEach(input => {
+                    const category = input.getAttribute('data-category');
+                    const budget = parseFloat(input.value) || 0;
+                    categoryBudgets[category] = budget;
+                });
+                
+                // 更新預算設定
+                this.dataManager.updateBudget({
+                    monthly: monthlyBudget,
+                    categories: categoryBudgets,
+                    warningThreshold: warningThreshold
+                });
+                
+                // 關閉模態窗
+                this.closeAllModals();
+                
+                // 更新 UI
+                this.updateUI();
+                
+                // 顯示成功消息
+                this.dataManager.showToast('預算設定已更新', 'success');
+            }
+
+            // 套用篩選
+            applyFilters() {
+                const type = document.getElementById('typeFilter').value;
+                const category = document.getElementById('categoryFilter').value;
+                const dateFrom = document.getElementById('dateFromFilter').value;
+                const dateTo = document.getElementById('dateToFilter').value;
+                
+                const filteredTransactions = this.dataManager.getFilteredTransactions(
+                    type, category, dateFrom, dateTo
+                );
+                
+                this.updateTransactionsList(filteredTransactions);
+            }
+
+            // 打開編輯模態窗
+            openEditModal(id) {
+                const transaction = this.dataManager.getAllTransactions().find(t => t.id === id);
+                
+                if (!transaction) {
+                    this.dataManager.showToast('找不到交易記錄', 'error');
+                    return;
+                }
+                
+                // 設定表單值
+                document.getElementById('editId').value = transaction.id;
+                document.getElementById('editAmount').value = transaction.amount;
+                
+                // 設定分類選項
+                const editCategorySelect = document.getElementById('editCategory');
+                editCategorySelect.innerHTML = '';
+                
+                this.dataManager.categories[transaction.type].forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category;
+                    editCategorySelect.appendChild(option);
+                });
+                
+                document.getElementById('editCategory').value = transaction.category;
+                document.getElementById('editDate').value = transaction.date;
+                document.getElementById('editDescription').value = transaction.description;
+                document.getElementById('editIsRecurring').checked = transaction.isRecurring;
+                
+                if (transaction.isRecurring) {
+                    document.getElementById('editRecurringOptions').style.display = 'block';
+                    document.getElementById('editRecurringType').value = transaction.recurringType;
+                    document.getElementById('editRecurringDay').value = transaction.recurringDay;
+                } else {
+                    document.getElementById('editRecurringOptions').style.display = 'none';
+                }
+                
+                // 顯示收據圖片（如果有）
+                const editReceiptPreview = document.getElementById('editReceiptPreview');
+                if (transaction.receiptImage) {
+                    editReceiptPreview.src = transaction.receiptImage;
+                    editReceiptPreview.style.display = 'block';
+                } else {
+                    editReceiptPreview.style.display = 'none';
+                }
+                
+                // 設定按鈕顏色
+                const updateBtn = document.getElementById('updateBtn');
+                if (transaction.type === 'income') {
+                    updateBtn.className = 'btn btn-block btn-income';
+                } else {
+                    updateBtn.className = 'btn btn-block btn-expense';
+                }
+                
+                // 打開模態窗
+                document.getElementById('editModal').style.display = 'flex';
+            }
+
+            // 打開預算設定模態窗
+            openBudgetModal() {
+                this.updateBudgetUI();
+                document.getElementById('budgetModal').style.display = 'flex';
+            }
+
+            // 打開匯率換算模態窗
+            openCurrencyModal() {
+                // 更新匯率（實際應用中會調用 API，這裡模擬更新）
+                this.dataManager.updateExchangeRates();
+                this.updateCurrencyUI();
+                document.getElementById('currencyModal').style.display = 'flex';
+            }
+
+            // 打開財務報表模態窗
+            openReportModal() {
+                this.initializeReportCharts();
+                this.updateReport();
+                document.getElementById('reportModal').style.display = 'flex';
+            }
+
+            // 打開設定模態窗
+            openSettingsModal() {
+                this.updateCategorySettings();
+                document.getElementById('settingsModal').style.display = 'flex';
+            }
+
+            // 關閉所有模態窗
+            closeAllModals() {
+                document.querySelectorAll('.modal').forEach(modal => {
+                    modal.style.display = 'none';
+                });
+            }
+
+            // 處理圖片上傳
+            handleImageUpload(file, previewId) {
+                if (!file) return;
+                
+                if (file.size > 5 * 1024 * 1024) {
+                    this.dataManager.showToast('圖片大小不能超過 5MB', 'error');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const preview = document.getElementById(previewId);
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+
+            // 刪除交易記錄
+            deleteTransaction(id) {
+                if (this.dataManager.deleteTransaction(id)) {
+                    this.updateUI();
+                    this.dataManager.showToast('交易記錄已刪除', 'success');
+                } else {
+                    this.dataManager.showToast('刪除失敗，找不到交易記錄', 'error');
+                }
+            }
+
+            // 匯出數據
+            exportData() {
+                const csvContent = this.dataManager.exportToCSV();
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', `記帳資料_${new Date().toISOString().slice(0, 10)}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                this.dataManager.showToast('資料匯出成功', 'success');
+            }
+
+            // 匯入數據
+            importData() {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.csv';
+                
+                input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const csvContent = event.target.result;
+                        const success = this.dataManager.importFromCSV(csvContent);
+                        
+                        if (success) {
+                            this.updateUI();
+                            this.dataManager.showToast('資料匯入成功', 'success');
+                        } else {
+                            this.dataManager.showToast('資料匯入失敗，請檢查檔案格式', 'error');
+                        }
+                    };
+                    reader.readAsText(file);
+                };
+                
+                input.click();
+            }
+
+            // 添加轉換後的交易
+            addConvertedTransaction() {
+                const amount = parseFloat(document.getElementById('fromAmount').value);
+                const fromCurrency = document.getElementById('fromCurrency').value;
+                const toCurrency = document.getElementById('toCurrency').value;
+                
+                const convertedAmount = this.dataManager.convertCurrency(amount, fromCurrency, toCurrency);
+                
+               // 預設添加為支出類型
+                this.currentType = 'expense';
+                
+                // 設定表單數據
+                document.getElementById('amount').value = convertedAmount.toFixed(2);
+                document.getElementById('description').value = `從 ${amount} ${fromCurrency} 兌換`;
+                
+                // 更新表單 UI
+                const formTypeBtns = document.querySelectorAll('.form-type-btn');
+                formTypeBtns.forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.getAttribute('data-type') === 'expense') {
+                        btn.classList.add('active');
+                    }
+                });
+                
+                this.updateSubmitButton();
+                this.updateCategoryOptions();
+                
+                // 關閉模態窗
+                this.closeAllModals();
+                
+                // 顯示提示
+                this.dataManager.showToast('已將轉換金額填入表單，請選擇分類並提交', 'success');
+            }
+
+            // 更新財務報表
+            updateReport() {
+                const period = document.getElementById('reportPeriod').value;
+                
+                // 根據週期獲取日期範圍
+                const today = new Date();
+                let startDate, endDate;
+                
+                switch (period) {
+                    case 'week':
+                        // 本週的第一天 (星期一)
+                        startDate = new Date(today);
+                        startDate.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1));
+                        endDate = new Date(today);
+                        break;
+                        
+                    case 'month':
+                        // 本月的第一天
+                        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                        endDate = new Date(today);
+                        break;
+                        
+                    case 'quarter':
+                        // 本季度的第一天
+                        const quarter = Math.floor(today.getMonth() / 3);
+                        startDate = new Date(today.getFullYear(), quarter * 3, 1);
+                        endDate = new Date(today);
+                        break;
+                        
+                    case 'year':
+                        // 本年的第一天
+                        startDate = new Date(today.getFullYear(), 0, 1);
+                        endDate = new Date(today);
+                        break;
+                }
+                
+                // 設定時間為 00:00:00
+                startDate.setHours(0, 0, 0, 0);
+                
+                // 獲取指定範圍的交易記錄
+                const transactions = this.dataManager.getTransactionsByDateRange(
+                    startDate.toISOString().split('T')[0],
+                    endDate.toISOString().split('T')[0]
+                );
+                
+                // 計算收入和支出
+                const income = transactions
+                    .filter(t => t.type === 'income')
+                    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+                    
+                const expense = transactions
+                    .filter(t => t.type === 'expense')
+                    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+                    
+                const net = income - expense;
+                const savingRate = income > 0 ? ((income - expense) / income * 100).toFixed(1) : 0;
+                
+                // 更新統計數據
+                document.getElementById('reportIncome').textContent = 'HK$ ' + income.toLocaleString();
+                document.getElementById('reportExpense').textContent = 'HK$ ' + expense.toLocaleString();
+                document.getElementById('reportNet').textContent = 'HK$ ' + net.toLocaleString();
+                document.getElementById('reportSavingRate').textContent = savingRate + '%';
+                
+                // 更新趨勢圖
+                this.updateTrendsChart(startDate, endDate, period);
+                
+                // 更新類別圖
+                this.updateCategoryChart(transactions);
+            }
+
+            // 更新趨勢圖
+            updateTrendsChart(startDate, endDate, period) {
+                const labels = [];
+                const incomeData = [];
+                const expenseData = [];
+                
+                // 生成日期標籤和初始數據
+                let current = new Date(startDate);
+                let interval;
+                
+                switch (period) {
+                    case 'week':
+                        interval = 'day';
+                        break;
+                    case 'month':
+                        interval = 'day';
+                        break;
+                    case 'quarter':
+                        interval = 'month';
+                        break;
+                    case 'year':
+                        interval = 'month';
+                        break;
+                }
+                
+                // 為每個時間點計算數據
+                while (current <= endDate) {
+                    let nextDate = new Date(current);
+                    let label;
+                    
+                    // 根據週期增加日期
+                    if (interval === 'day') {
+                        label = current.getDate() + '日';
+                        nextDate.setDate(nextDate.getDate() + 1);
+                    } else {
+                        label = (current.getMonth() + 1) + '月';
+                        nextDate.setMonth(nextDate.getMonth() + 1);
+                    }
+                    
+                    labels.push(label);
+                    
+                    // 獲取該時間段的交易記錄
+                    const periodTransactions = this.dataManager.getTransactionsByDateRange(
+                        current.toISOString().split('T')[0],
+                        new Date(nextDate - 1).toISOString().split('T')[0]
+                    );
+                    
+                    // 計算該時間段的收入和支出
+                    const periodIncome = periodTransactions
+                        .filter(t => t.type === 'income')
+                        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+                        
+                    const periodExpense = periodTransactions
+                        .filter(t => t.type === 'expense')
+                        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+                    
+                    incomeData.push(periodIncome);
+                    expenseData.push(periodExpense);
+                    
+                    // 移至下一時間段
+                    current = nextDate;
+                }
+                
+                // 更新圖表數據
+                this.reportTrendsChart.data.labels = labels;
+                this.reportTrendsChart.data.datasets[0].data = incomeData;
+                this.reportTrendsChart.data.datasets[1].data = expenseData;
+                
+                this.reportTrendsChart.update();
+            }
+
+            // 更新分類圖
+            updateCategoryChart(transactions) {
+                // 按類別分組計算支出
+                const expenseByCategory = {};
+                transactions
+                    .filter(t => t.type === 'expense')
+                    .forEach(t => {
+                        if (!expenseByCategory[t.category]) {
+                            expenseByCategory[t.category] = 0;
+                        }
+                        expenseByCategory[t.category] += parseFloat(t.amount);
+                    });
+                
+                // 將數據轉換為陣列並排序
+                const sortedCategories = Object.entries(expenseByCategory)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 10); // 只顯示前 10 個
+                
+                const labels = sortedCategories.map(item => item[0]);
+                const data = sortedCategories.map(item => item[1]);
+                
+                // 生成顏色
+                const colors = labels.map((_, index) => {
+                    // 不同色調的紅色
+                    return `hsla(0, 80%, ${45 + (index * 3) % 30}%, 0.8)`;
+                });
+                
+                // 更新圖表數據
+                this.reportCategoryChart.data.labels = labels;
+                this.reportCategoryChart.data.datasets[0].data = data;
+                this.reportCategoryChart.data.datasets[0].backgroundColor = colors;
+                
+                this.reportCategoryChart.update();
+            }
+
+            // 備份數據
+            backupData() {
+                const backupStr = this.dataManager.createBackup();
+                const blob = new Blob([backupStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', `記帳備份_${new Date().toISOString().slice(0, 10)}.json`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                this.dataManager.showToast('資料備份已下載', 'success');
+            }
+
+            // 還原備份
+            restoreData() {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                
+                input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const backupContent = event.target.result;
+                        const success = this.dataManager.restoreBackup(backupContent);
+                        
+                        if (success) {
+                            this.updateUI();
+                            this.dataManager.showToast('資料已成功還原', 'success');
+                        } else {
+                            this.dataManager.showToast('資料還原失敗，請檢查檔案格式', 'error');
+                        }
+                    };
+                    reader.readAsText(file);
+                };
+                
+                input.click();
+            }
+        }
+
+        // 初始化應用
+        document.addEventListener('DOMContentLoaded', () => {
+            // 創建資料管理器
+            const dataManager = new DataManager();
+            
+            // 創建 UI 控制器
+            const uiController = new UIController(dataManager);
+        });
+    </script>
+</body>
+</html>
+
+
+
+    
